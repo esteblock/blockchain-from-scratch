@@ -45,7 +45,52 @@ impl StateMachine for AccountedCurrency {
     type Transition = AccountingTransaction;
 
     fn next_state(starting_state: &Balances, t: &AccountingTransaction) -> Balances {
-        todo!("Exercise 1")
+        let mut new_state = starting_state.clone();
+        match t {
+            AccountingTransaction::Mint {minter, amount } => {
+                if amount != &0 {
+                    new_state
+                    .entry(*minter)
+                    .and_modify(|balance| *balance += *amount)
+                    .or_insert(*amount);
+                } //mint 0 does nothing
+            },
+            AccountingTransaction::Transfer { sender, receiver, amount }=> {
+                if let Some(sender_balance) = starting_state.get(sender) {
+                    if sender_balance == amount {
+                        // sender gets deleted
+                        new_state.remove(sender);
+                        new_state
+                            .entry(*receiver)
+                            .and_modify(|balance| *balance += *amount)
+                            .or_insert(*amount);
+                    }  
+                    if sender_balance > amount {
+                        new_state
+                            .entry(*sender)
+                            .and_modify(|balance| *balance -= *amount);
+                        new_state
+                            .entry(*receiver)
+                            .and_modify(|balance| *balance += *amount)
+                            .or_insert(*amount);
+                    }
+                    // if sender_balance < amount, do nothing
+                }
+            },
+            AccountingTransaction::Burn {burner, amount } => {
+                if let Some(burner_balance) = starting_state.get(burner) {
+                    if burner_balance > amount {
+                        new_state
+                            .entry(*burner)
+                            .and_modify(|balance| *balance -= *amount);
+                    } else {
+                        new_state.remove(burner);
+                    }
+                }
+            },
+            
+        }
+        new_state.clone()
     }
 }
 
