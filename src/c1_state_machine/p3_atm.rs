@@ -14,17 +14,6 @@ pub enum Key {
     Enter,
 }
 
-impl From<Key> for u64 {
-    fn from(key: Key) -> Self {
-        match key {
-            Key::One => 1,
-            Key::Two => 2,
-            Key::Three => 3,
-            Key::Four => 4,
-            Key::Enter => 5,
-        }
-    }
-}
 
 /// Something you can do to the ATM
 pub enum Action {
@@ -115,11 +104,29 @@ impl StateMachine for Atm {
                 Action::PressKey(key ) => { 
                     match key {
                         Key::Enter => {// they wanna withdraw the amount they posted
-                            let amount = starting_state.keystroke_register.clone();
-                            let amount: u64  = (key.clone()).into();
+                            let keys_vec = starting_state.keystroke_register.clone();
+                            let amount: u64 = keys_vec.iter()
+                                    .enumerate()
+                                    .map(|(index, 
+                                        &ref key)| {
+                                            dbg!(key);
+                                            let mut key_value = match key {
+                                                Key::One => 1,
+                                                Key::Two => 2,
+                                                Key::Three => 3,
+                                                Key::Four => 4,
+                                                Key::Enter => 5,
+                                            };
+                                            key_value=key_value + (index as u64) * 10;
+                                        dbg!(key_value);
+                                        key_value
+                                    })
+                                    .sum();
+                                dbg!(amount);
                             if amount > starting_state.cash_inside {
+                                
                                 Atm {
-                                    cash_inside: 0,
+                                    cash_inside: starting_state.cash_inside,
                                     expected_pin_hash: Auth::Waiting,
                                     keystroke_register: Vec::new(),
                                 }
