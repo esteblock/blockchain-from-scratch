@@ -14,6 +14,18 @@ pub enum Key {
     Enter,
 }
 
+impl From<Key> for u64 {
+    fn from(key: Key) -> Self {
+        match key {
+            Key::One => 1,
+            Key::Two => 2,
+            Key::Three => 3,
+            Key::Four => 4,
+            Key::Enter => 5,
+        }
+    }
+}
+
 /// Something you can do to the ATM
 pub enum Action {
     /// Swipe your card at the ATM. The attached value is the hash of the pin
@@ -58,7 +70,94 @@ impl StateMachine for Atm {
     type Transition = Action;
 
     fn next_state(starting_state: &Self::State, t: &Self::Transition) -> Self::State {
-        todo!("Exercise 4")
+        match starting_state.expected_pin_hash {
+            Auth::Waiting => match t {
+                Action::SwipeCard(pin_hash) => Atm {
+                    cash_inside: starting_state.cash_inside,
+                    expected_pin_hash: Auth::Authenticating(*pin_hash),
+                    keystroke_register: Vec::new(),
+                }, // new state will be the  same but now we are waiting for the pin
+                _ => starting_state.clone(),// other dont do anything
+            },
+            Auth::Authenticating(pin_hash)=> match t {
+                Action::PressKey(key) => {
+                    match key {
+                        Key::Enter => { // finished entering the pin 
+                            let pin = starting_state.keystroke_register.clone();
+                            let entered_pin_hash = crate::hash(&pin);
+                            if entered_pin_hash == pin_hash {
+                                Atm {
+                                    cash_inside: starting_state.cash_inside,
+                                    expected_pin_hash: Auth::Authenticated,
+                                    keystroke_register: Vec::new(),
+                                }
+                            } else {
+                                Atm { // if not we go back to waiting
+                                    cash_inside: starting_state.cash_inside,
+                                    expected_pin_hash: Auth::Waiting,
+                                    keystroke_register: Vec::new(),
+                                }
+                            }
+                        },
+                        _ => { // for any other key we add it to the register
+                            let mut keystroke_register = starting_state.keystroke_register.clone();
+                            keystroke_register.push(key.clone());
+                            Atm {
+                                cash_inside: starting_state.cash_inside,
+                                expected_pin_hash: Auth::Authenticating(pin_hash),
+                                keystroke_register,
+                            }
+                        }
+                    }},
+                    _ => starting_state.clone(), // if they swipe a card, we continue trying to autenticate
+            },
+            Auth::Authenticated => match t {
+                Action::PressKey(key ) => { 
+                    match key {
+                        Key::Enter => {// they wanna withdraw the amount they posted
+                            let amount = starting_state.keystroke_register.clone();
+                            let amount: u64  = (key.clone()).into();
+                            if amount > starting_state.cash_inside {
+                                Atm {
+                                    cash_inside: 0,
+                                    expected_pin_hash: Auth::Waiting,
+                                    keystroke_register: Vec::new(),
+                                }
+                            } else {
+                                Atm {
+                                    cash_inside: starting_state.cash_inside - amount,
+                                    expected_pin_hash: Auth::Waiting,
+                                    keystroke_register: Vec::new(),
+                                }
+                            }
+                        }// if they press enter we check if they have entered an amount
+                        _ => {
+                            // they are continuing passing some value to withdraw
+                            let mut keystroke_register = starting_state.keystroke_register.clone();
+                            keystroke_register.push(key.clone());
+                            Atm {
+                                cash_inside: starting_state.cash_inside,
+                                expected_pin_hash: Auth::Authenticated,
+                                keystroke_register,
+                            }
+                        }
+
+                        
+                    }
+                    
+                }
+                Action::PressKey(k) => {
+                    let mut keystroke_register = starting_state.keystroke_register.clone();
+                    keystroke_register.push(k.clone());
+                    Atm {
+                        cash_inside: starting_state.cash_inside,
+                        expected_pin_hash: Auth::Authenticated,
+                        keystroke_register,
+                    }
+                }
+                _ => starting_state.clone(), // if swipe while autenticating, continue the same
+            },
+        }
     }
 }
 
