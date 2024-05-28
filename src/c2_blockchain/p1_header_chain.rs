@@ -50,13 +50,18 @@ impl Header {
     /// This method may assume that the block on which it is called is valid, but it
     /// must verify all of the blocks in the slice;
     fn verify_sub_chain(&self, chain: &[Header]) -> bool {
+        dbg!(chain);
+        dbg!(self);
+        dbg!(hash(self));
         // we will check from the first to the last
-        for i in chain.len()-1..1 {
-            if chain[i].parent != hash(&chain[i-1]) ||
-            chain[i].height != chain[i-1].height+1
-            {
-                return false
-            } 
+        if chain.len()==0{
+            return true;
+        }
+        for i in 0..chain.len() {
+            dbg!(i);
+            if chain[i].height!= (i+1) as u64 {return false};
+            if i==0 && (chain[i].parent != hash(self)) {return false};
+            if i>0 && (chain[i].parent != hash(&chain[i-1])) {return false};
         }
         return true;
     }
@@ -83,14 +88,10 @@ fn build_valid_chain_length_5() -> Vec<Header> {
 fn build_an_invalid_chain() -> Vec<Header> {
     let g = Header::genesis();
     let mut chain:Vec<Header> = Vec::new();
-    chain.extend_from_slice(&[g]); 
     for i in 0..4 {
-        chain.extend_from_slice(&[g]); 
-        // let child = chain.last().unwrap().child();
-        // chain.extend_from_slice(&[child]);
+        chain.extend_from_slice(&[g.clone()]); 
     };
     chain
-    // todo!("Exercise 5")
 }
 
 // To run these tests: `cargo test bc_1
